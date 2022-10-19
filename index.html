@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <!--
+        Customize this policy to fit your own app's needs. For more guidance, see:
+            https://github.com/apache/cordova-plugin-whitelist/blob/master/README.md#content-security-policy
+        Some notes:
+            * gap: is required only on iOS (when using UIWebView) and is needed for JS->native communication
+            * https://ssl.gstatic.com is required only on Android and is needed for TalkBack to function properly
+            * Disables use of inline scripts in order to mitigate risk of XSS vulnerabilities. To change this:
+                * Enable inline JS: add 'unsafe-inline' to default-src
+        -->
+        <!-- <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: gap: https://ssl.gstatic.com 'unsafe-eval'; style-src 'self' 'unsafe-inline'; media-src *; img-src 'self' data: content:;"> -->
+        <meta name="format-detection" content="telephone=no">
+        <meta name="msapplication-tap-highlight" content="no">
+        <meta name="viewport" content="initial-scale=1, width=device-width, viewport-fit=cover">
+        <link rel="stylesheet" type="text/css" href="css/index.css">
+        <title>The Salt Keep</title>
+    </head>
+    <body data-bind="css: { 'bigText': bigText, 'bigLine': bigLine }, click: hideAllPopovers">
+        <script src="chs.js"></script>
+        <script src="core.js"></script>
+        <div class="app">
+<!--             <div class="menu">
+                <h3>Menu</h3>
+                <div class="divider-line"></div>
+                <img data-bind="click: toggleMenu" src="img/close.svg">
+                <button class="choice">Inventory</button>
+                <button class="choice">Character</button>
+                <button class="choice">Settings</button>
+            </div> -->
+            <div class="app-blackout"></div>
+            <div data-bind="visible: appUiView() === 'mainMenu', css: { 'popover-active': popoverActive }">
+                <div class="menu-options">
+                    <!-- <object style="width: 100%; height: 225px; padding:0; margin-bottom: -20px;" type="image/svg+xml" data="img/saltkeep.svg" width="32" height="32"></object> -->
+                    <img class="title-img" src="img/salt-keep.png">
+                    <h3 class="maintitle">The Salt Keep</h3>
+                    <div class="menu-choices">
+                        <button class="choice" data-bind="click: mainMenu.continueGame">Continue</button>
+                        <button class="choice" data-bind="click: mainMenu.newGame">New Game</button>
+                        <button class="choice" data-bind="click: mainMenu.loadGame">Load Game</button>
+                        <button class="choice" data-bind="click: mainMenu.about">About</button>
+                    </div>
+                    <p class="copyright">&copy; Small Gray Games <span id="currentYear"></span></p>
+                    <p class="versionnumber">v0.1.3</p>
+                </div>
+            </div>
+
+            <div class="story" data-bind="visible: appUiView() === 'activeGame', css: { 'popover-active': popoverActive }">
+                <div class="fixed-nav">
+                    <div class="nav">
+                        <button class="wrapper-btn story-btn" data-bind="click: setView.bind($root, 'story')">
+                            <object data-bind="css: { selected: uiView() === 'story'}" type="image/svg+xml" data="img/parchment.svg" width="32" height="32"></object>
+                        </button>
+                        <button class="wrapper-btn inv-btn" data-bind="click: setView.bind($data, 'inventory')">
+                            <object data-bind="css: { selected: uiView() === 'inventory'}" type="image/svg+xml" data="img/pouch.svg" width="32" height="32"></object>
+                            <span class="nav-counter" data-bind="visible: newItems() > 0, text: newItems"></span>
+                        </button>
+                        <button class="wrapper-btn char-btn" data-bind="click: setView.bind($data, 'character')">
+                            <object data-bind="css: { selected: uiView() === 'character'}" type="image/svg+xml" data="img/mirror.svg" width="32" height="32"></object>
+                            <span class="nav-counter" data-bind="visible: characterUpdates() > 0, text: characterUpdates"></span>
+                        </button>
+                        <button class="wrapper-btn settings-btn" data-bind="click: setView.bind($data, 'settings')">
+                            <object data-bind="css: { selected: uiView() === 'settings'}" type="image/svg+xml" data="img/gear.svg" width="32" height="32"></object>
+                        </button>
+                    </div>
+                    <div class="divider-line"></div>
+                </div>
+                <div class="blackout"></div>
+                <div id="game-area">
+                    <div data-bind="visible: uiView() === 'story' && storyView() === 'mainStory'">
+                        <h3 data-bind="text: roomTitle"></h3>
+                        <p id="room-text" data-bind="html: roomText"></p>
+
+                        <div data-bind="visible: !demoEnd(), css: { 'fixed-choices': isFixedChoices }" class="choices">
+                            <div class="divider-line"></div>
+<!--                             <div data-bind="foreach: choices()">
+                                <button class="choice" data-bind="html: text, click: choose"></button>
+                            </div> -->
+                            <div data-bind="foreach: otherChoices()">
+                                <button class="choice" data-bind="css: { 'seen': seen }, html: text, click: choose"></button>
+                            </div>
+                            <div data-bind="foreach: solutions()">
+                                <button class="choice" data-bind="css: { 'seen': seen, 'threshold': isThreshold && !requirementsMet() }, click: choose">
+                                    <span class="choiceText" data-bind="html: text"></span>
+                                    <div data-bind="visible: !isThreshold" class="difficulty">
+                                        <span data-bind="text: statDifficulty">Luck</span>
+                                        <span data-bind="text: displayDifficulty"></span>
+                                    </div>
+                                    <div data-bind="visible: isThreshold && !requirementsMet()" class="threshold-d difficulty">
+                                        <span data-bind="text: statDifficulty">Luck</span>
+                                        <span data-bind="text: statRequirement"></span> Required
+                                    </div>
+                                    <div data-bind="visible: isThreshold && requirementsMet()" class="threshold-d difficulty">
+                                        <span data-bind="text: statDifficulty">Luck</span>
+                                        <span data-bind="text: statRequirement"></span> (Requirement Met)
+                                    </div>
+                                </button>
+                            </div>
+                            <div data-bind="foreach: goChoices()">
+                                <button class="choice" data-bind="css: { 'seen': seen }, html: text, click: choose"></button>
+                            </div>
+                        </div>
+
+                        <!--
+                        <div data-bind="visible: healthStatus() === 'Dead', css: { 'fixed-choices': isFixedChoices }" class="choices">
+                            <div class="divider-line"></div>
+                            <button class="choice" data-bind="click: handleDeath">End</button>
+                        </div> -->
+
+                        <div data-bind="visible: demoEnd, css: { 'fixed-choices': isFixedChoices }" class="choices">
+                            <div class="divider-line"></div>
+                            <button class="choice" data-bind="click: settingsButtons.endDemo">End the Demo</button>
+                        </div>
+                    </div>
+
+                    <div data-bind="visible: uiView() === 'story' && storyView() === 'chapterSplash'">
+                        <div class="chapter-box">
+            <!--            <h2 class="header">Chapter 2</h2>
+                            <h2 class="name">The Salt Keep</h2> -->
+
+                            <h2 class="header" data-bind="text: splash.header">Doyle Died</h2>
+                            <h2 class="name" data-bind="text: splash.name">Reloading...</h2>
+                        </div>
+                    </div>
+
+                    <div data-bind="visible: uiView() === 'story' && storyView() === 'itemResult'">
+                        <h3 data-bind="text: itemInjuryLabel"></h3>
+  
+
+                        <div class="results-box">
+                            <div class="solution-results">
+                                <!-- ko foreach: itemsJustReceived -->
+                                    <div class="stat">
+                                        <p>Item Acquired <span class="stat-val" data-bind="text: name"></span></p>
+                                    </div>
+                                <!-- /ko -->
+                                <!-- ko foreach: itemsJustLost -->
+                                    <div class="stat">
+                                        <p>Item Lost <span class="stat-val" data-bind="text: name"></span></p>
+                                    </div>
+                                <!-- /ko -->
+                                <!-- ko foreach: injuriesJustSustained -->
+                                    <div class="stat">
+                                        <p>Injury <span class="stat-val" data-bind="text: description"></span></p>
+                                    </div>
+                                <!-- /ko -->
+                            </div>
+
+<!--                             <div class="results-tip solution-results">
+                                <h4 style="margin-top:0;">Finding Items</h4>
+                                <p style="font-style:italic;">Be sure to look at the new items Doyle finds. Many will require you to discover their use, but some can be equipped at any time to adjust Doyle's stats, and others can be consumed to heal Doyle's injuries.</p>
+                            </div> -->
+                            
+                        </div>
+
+                        <div class="fixed-choices choices">
+                            <button class="choice" data-bind="click: itemContinue">Continue</button>
+                        </div>
+                    </div>
+
+                    <div data-bind="visible: uiView() === 'story' && storyView() === 'solutionResult'">
+                        <h3 data-bind="text: solutionResult.term"></h3>
+
+                        <div class="results-box">
+                            <div class="solution-results">
+                                <div class="stat">
+                                    <p>Base Exp <span class="stat-val" data-bind="text: solutionResult.base"></span></p>
+                                </div>
+                                <div class="stat">
+                                    <p>Risk Bonus <span class="stat-val" data-bind="text: solutionResult.riskBonus"></span></p>
+                                </div>
+                                <div data-bind="if: solutionResult.failurePenalty" class="stat">
+                                    <p>Failure Penalty <span class="stat-val" data-bind="text: solutionResult.failurePenalty"></span></p>
+                                </div>
+                                <div class="stat">
+                                    <p>Total Earned <span class="stat-val" data-bind="text: solutionResult.total"></span></p>
+                                </div>
+                                <h3 data-bind="visible: justGotLevelUp() && statPoints() > 0, click: spendStatPoints">Level Up</h3>
+                            </div>
+                        </div>
+
+                        <div class="fixed-choices choices">
+                            <button class="choice" data-bind="click: solutionResult.continue">Continue</button>
+                        </div>
+                    </div>
+                    <div data-bind="visible: uiView() === 'inventory'">
+                        <h3>Inventory</h3>
+                        <div class="equipped">
+                            <div>
+                                <span>Weapon</span>
+                                <button class="choice" data-bind="css: { 'equipped': weaponEquipped() }, text: weaponEquipped() ? weaponEquipped().name : 'None', click: weaponEquipped() ? weaponEquipped().selectItem.bind(weaponEquipped()) : ''"></button>
+                            </div>
+                            <div>
+                                <span>Armor</span>
+                                <button class="choice" data-bind="css: { 'equipped': armorEquipped }, text: armorEquipped() ? armorEquipped().name : 'None', click: armorEquipped() ? armorEquipped().selectItem.bind(armorEquipped()) : ''"></button>
+                            </div>
+                            <div>
+                                <span>Tool</span>
+                                <button class="choice" data-bind="css: { 'equipped': toolEquipped() }, text: toolEquipped() ? toolEquipped().name : 'None', click: toolEquipped() ? toolEquipped().selectItem.bind(toolEquipped()) : ''"></button>
+                            </div>
+                            <div>
+                                <span>Accessory</span>
+                                <button class="choice" data-bind="css: { 'equipped': accessoryEquipped() }, text: accessoryEquipped() ? accessoryEquipped().name : 'None', click: accessoryEquipped() ? accessoryEquipped().selectItem.bind(accessoryEquipped()) : ''"></button>
+                            </div>
+                        </div>
+                        <div class="inventory-options">
+                            <button data-bind="css: { selected: inventoryView() === 'items'}, click: setInventoryView.bind($data, 'items')" class="wrapper-btn">
+                                Items<span class="small-counter nav-counter" data-bind="visible: newRegularItems() > 0, text: newRegularItems"></span>
+                            </button>
+                            <button data-bind="css: { selected: inventoryView() === 'equip'}, click: setInventoryView.bind($data, 'equip')" class="wrapper-btn">
+                                Equip<span class="small-counter nav-counter" data-bind="visible: newEquippableItems() > 0, text: newEquippableItems"></span>
+                            </button>
+                            <button data-bind="css: { selected: inventoryView() === 'consume'}, click: setInventoryView.bind($data, 'consume')" class="wrapper-btn">
+                                Consume<span class="small-counter nav-counter" data-bind="visible: newConsumableItems() > 0, text: newConsumableItems"></span>
+                            </button>
+                        </div>
+
+                        <div id="inventory-box">
+
+                            <div data-bind="visible: inventoryView() === 'equip', foreach: inventoryEquipment">
+                                <div>
+                                    <button class="choice" data-bind="visible: !equipped(), click: selectItem">
+                                        <span data-bind="text: name"></span>
+                                        <span data-bind="visible: !seen()" class="new-marker">NEW</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div data-bind="visible: inventoryView() === 'equip' && inventoryEquipment().length === 0">
+                                <p class="inventory-empty">Nothing to Equip</p>
+                            </div>
+
+                            <div data-bind="visible: inventoryView() === 'items', foreach: inventoryItems">
+                                <div>
+                                    <button class="choice" data-bind="click: selectItem">
+                                        <span data-bind="text: name"></span>
+                                        <span data-bind="visible: !seen()" class="new-marker">NEW</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div data-bind="visible: inventoryView() === 'items' && inventoryItems().length === 0">
+                                <p class="inventory-empty">Bag's Empty</p>
+                            </div>
+
+                            <div data-bind="visible: inventoryView() === 'consume', foreach: inventoryConsumables">
+                                <div>
+                                    <button class="choice" data-bind="click: selectItem">
+                                        <span data-bind="text: name"></span>
+                                        <span data-bind="visible: !seen()" class="new-marker">NEW</span>
+                                    </button>
+                                </div>
+                            </div>
+                            <div data-bind="visible: inventoryView() === 'consume' && inventoryConsumables().length === 0">
+                                <p class="inventory-empty">Nothing usable</p>
+                            </div>
+
+                        </div>
+                    </div>
+                    <div data-bind="visible: uiView() === 'character'">
+                        <h3>Character</h3>
+
+                        <div class="stat">
+                            <p>Level 
+                                <button data-bind="visible: statPoints, click: spendStatPoints" class="stat-penalty" style="background:transparent;color:#ddd;padding:5px 15px;">Spend <span data-bind="text: statPoints"></span> Point(s)</button>
+                                <span class="stat-val" data-bind="text: level"></span>
+                            </p>
+                        </div>
+                        <div class="stat">
+                            <p>Exp. <span class="stat-val" data-bind="text: exp"></span></p>
+                        </div>
+                        <div class="stat">
+                            <p>Needed <span class="stat-val" data-bind="text: expNeeded"></span></p>
+                        </div>
+                        <div class="stats">
+                            <!-- <button data-bind="visible: statPoints, click: spendStatPoints" class="choice">Spend <span data-bind="text: statPoints"></span> Point(s)</button> -->
+                            <div class="stat">
+                                <p>Grit 
+                                    <span data-bind="visible: currentInjuries().length > 0" class="stat-penalty">-<span data-bind="text: currentInjuries().length">1</span></span>
+                                    <span class="stat-val" data-bind="text: displayGrit"></span>
+                                </p>
+                            </div>
+                            <div class="stat">
+                                <p>Smarts 
+                                    <span data-bind="visible: currentInjuries().length > 0" class="stat-penalty">-<span data-bind="text: currentInjuries().length">1</span></span>
+                                    <span class="stat-val" data-bind="text: displaySmarts"></span>
+                                </p>
+                            </div>
+                            <div class="stat">
+                                <p>Charm 
+                                    <span data-bind="visible: currentInjuries().length > 0" class="stat-penalty">-<span data-bind="text: currentInjuries().length">1</span></span>
+                                    <span class="stat-val" data-bind="text: displayCharm"></span>
+                                </p>
+                            </div>
+                            <div class="stat">
+                                <p>Luck 
+                                    <span data-bind="visible: currentInjuries().length > 0" class="stat-penalty">-<span data-bind="text: currentInjuries().length">1</span></span>
+                                    <span class="stat-val" data-bind="text: displayLuck"></span>
+                                </p>
+                            </div>
+
+                        </div>
+                        <h4>Health Status: <span data-bind="text: healthStatus"></span></h4>
+                        <div data-bind="foreach: currentInjuries">
+                            <button class="choice" data-bind="click: select">
+                                <span data-bind="text: description"></span>
+                                <span data-bind="visible: !seen()" class="new-marker">NEW</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="settings-section" data-bind="visible: uiView() === 'settings'">
+                        <div class="settings-box">
+                        <h3>Settings</h3>
+                            <p class="setting">
+                                <label for="lightmode">Light Mode <span data-bind="css: { 'active': lightMode }" class="styled-checkbox">&check;</span></label>
+                                <input name="lightmode" id="lightmode" type="checkbox" data-bind="checked: lightMode">
+                            </p>
+                            <p class="setting">
+                                <label for="bigtext">Bigger Text <span data-bind="css: { 'active': bigText }" class="styled-checkbox">&check;</span></label>
+                                <input name="bigtext" id="bigtext" type="checkbox" data-bind="checked: bigText">
+                            </p>
+                            <p class="setting">
+                                <label for="bigLine">Bigger Line Spacing <span data-bind="css: { 'active': bigLine }" class="styled-checkbox">&check;</span></label>
+                                <input name="bigLine" id="bigLine" type="checkbox" data-bind="checked: bigLine">
+                            </p>
+                            <p class="setting">
+                                <label for="fastTransitions">Faster Transitions <span data-bind="css: { 'active': fastTransitions }" class="styled-checkbox">&check;</span></label>
+                                <input name="fastTransitions" id="fastTransitions" type="checkbox" data-bind="checked: fastTransitions">
+                            </p>
+                        </div>
+                        <div class="options-box">
+                            <button data-bind="click: settingsButtons.restartChapterPopover" class="choice">Restart Chapter</button>
+                            <button data-bind="click: settingsButtons.mainMenu" class="choice">Return to Title Menu</button>
+                            <button data-bind="click: settingsButtons.exportSavePopover" class="choice">Export Save</button>
+                            <button data-bind="click: settingsButtons.importSavePopover" class="choice">Import Save</button>
+                            <!-- <button data-bind="click: settingsButtons.viewCredits" class="choice">View Credits</button> -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="levelPopover" data-bind="if: tempStats" class="popover">
+                <h3><span data-bind="text: statPoints() - tempSpent()"></span> Point(s) Available</h3>
+                <div class="stats">
+                    <div class="stat">
+                        <p>
+                            <span>Grit</span> 
+                            <div class="stat-level-box">
+                                <button class="stat-btn" data-bind="click: tempStats().grit.subtract">-</button>
+                                <div class="stat-val" data-bind="text: tempStats().grit.val"></div>
+                                <button class="stat-btn" data-bind="click: tempStats().grit.add">+</button>
+                            </div>
+                        </p>
+                    </div>
+                    <div class="stat">
+                        <p>
+                            <span>Smarts</span> 
+                            <div class="stat-level-box">
+                                <button class="stat-btn" data-bind="click: tempStats().smarts.subtract">-</button>
+                                <div class="stat-val" data-bind="text: tempStats().smarts.val"></div>
+                                <button class="stat-btn" data-bind="click: tempStats().smarts.add">+</button>
+                            </div>
+                        </p>
+                    </div>
+                    <div class="stat">
+                        <p>
+                            <span>Charm</span> 
+                            <div class="stat-level-box">
+                                <button class="stat-btn" data-bind="click: tempStats().charm.subtract">-</button>
+                                <div class="stat-val" data-bind="text: tempStats().charm.val"></div>
+                                <button class="stat-btn" data-bind="click: tempStats().charm.add">+</button>
+                            </div>
+                        </p>
+                    </div>
+                    <div class="stat">
+                        <p>
+                            <span>Luck</span> 
+                            <div class="stat-level-box">
+                                <button class="stat-btn" data-bind="click: tempStats().luck.subtract">-</button>
+                                <div class="stat-val" data-bind="text: tempStats().luck.val"></div>
+                                <button class="stat-btn" data-bind="click: tempStats().luck.add">+</button>
+                            </div>
+                        </p>
+                    </div>
+                </div>
+                <button class="choice" data-bind="click: confirmStatPoints">Confirm</button>
+            </div>
+
+            <div id="itemPopover" data-bind="if: selectedItem" class="popover">
+                <h3 data-bind="text: selectedItem().name"></h3>
+                <p class="item-type" data-bind="visible: selectedItem().type === 'equippable'">- <span data-bind="text: selectedItem().slot"></span> -</p>
+                <p data-bind="html: selectedItem().description"></p>
+
+                <div data-bind="if: selectedItem().type === 'equippable' || selectedItem().type === 'consumable'">
+                    <div class="stats">
+                        <div data-bind="visible: selectedItem().gb() > 0" class="stat">
+                            <p>Grit <span class="stat-val">+<span data-bind="text: selectedItem().gb"></span></span></p>
+                        </div>
+                        <div data-bind="visible: selectedItem().sb() > 0" class="stat">
+                            <p>Smarts <span class="stat-val">+<span data-bind="text: selectedItem().sb"></span></span></p>
+                        </div>
+                        <div data-bind="visible: selectedItem().cb() > 0" class="stat">
+                            <p>Charm <span class="stat-val">+<span data-bind="text: selectedItem().cb"></span></span></p>
+                        </div>
+                        <div data-bind="visible: selectedItem().lb() > 0" class="stat">
+                            <p>Luck <span class="stat-val">+<span data-bind="text: selectedItem().lb"></span></span></p>
+                        </div>
+                        <div data-bind="if: selectedItem().type === 'consumable' && !healing()" class="stat">
+                            <p>Heals <span class="stat-val">1 Injury</span></p>
+                        </div>
+                        <div data-bind="if: healing() && !injuryHealed()" class="stat">
+                            <p style="text-align: center" data-bind="text: healing"></p>
+                        </div>
+                        <div data-bind="if: healing() && injuryHealed()" class="stat">
+                            <p>Healed <span class="stat-val" data-bind="text: injuryHealed"></span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <button data-bind="visible: selectedItem().type === 'equippable' && !selectedItem().equipped(), click: selectedItem().equip.bind(selectedItem())" class="choice">Equip</button>
+                <button data-bind="visible: selectedItem().type === 'equippable' && selectedItem().equipped(), click: selectedItem().unequip.bind(selectedItem())" class="choice">Unequip</button>
+                <button data-bind="visible: selectedItem().type === 'consumable', click: selectedItem().consume.bind(selectedItem()), css: { 'disabled': currentInjuries().length === 0 || healing() }" class="choice">Use</button>
+            </div>
+
+            <div id="injuryPopover" data-bind="if: selectedInjury" class="popover">
+                <h3 data-bind="text: selectedInjury().description"></h3>
+                <p data-bind="html: selectedInjury().info"></p>
+            </div>
+
+            <div id="newGamePopover" class="popover">
+                <h3>Select a Save Slot</h3>
+                <div data-bind="foreach: mainMenu.saveSlots">
+                    <!-- ko if: prog -->
+                    <button class="save" data-bind="click: startNewGame">
+                        <p class="save-title" data-bind="text: roomTitle"></p>
+                        <p>Level <span data-bind="text: level"></span></p>
+                        <p data-bind="text: lastPlayed"></p>
+                    </button>
+                    <!-- /ko -->
+                    <!-- ko if: !prog -->
+                        <button class="save" data-bind="click: startNewGame">
+                            Empty Slot
+                        </button>   
+                    <!-- /ko -->
+                </div>
+            </div>
+
+            <div id="loadGamePopover" class="popover">
+                <h3>Select a Save Slot</h3>
+                <div data-bind="foreach: mainMenu.saveSlots">
+                    <!-- ko if: prog -->
+                    <button class="save" data-bind="click: loadFromSlot">
+                        <p class="save-title" data-bind="text: roomTitle"></p>
+                        <p>Level <span data-bind="text: level"></span></p>
+                        <p data-bind="text: lastPlayed"></p>
+                    </button>
+                    <!-- /ko -->
+                    <!-- ko if: !prog -->
+                        <button class="save">
+                            Empty Slot
+                        </button>   
+                    <!-- /ko -->
+                </div>
+            </div>
+
+            <div id="aboutPopover" class="popover">
+                <h3>About the Game</h3>
+                <p>The Salt Keep is a fantasy/horror text RPG. All action is described through text, but you choose where to go and what to do, what abilities to prioritize via equipment and level-ups, and when to take risks in percentage-based challenges. While injuries are possible, death and dead-ends are not, so don't hesitate to try things out.</p>
+
+                <p>This demo amounts to about 15% of the expected scope of the full game. Keep an eye out for the full version in the coming months. If you want to support development and keep up to date on progress:<p>
+                    <ul class="linkslist">
+                        <li><a target="_blank" href="https://www.patreon.com/smallgraygames">Become a Patreon backer</a></li>
+                        <li><a target="_blank" href="https://smallgraygames.itch.io/the-salt-keep">Follow the dev blog on Itch.io</a></li>
+                        <li><a target="_blank" href="https://twitter.com/smallgraygames">Follow on Twitter</a></li>
+                    </ul>
+                <p>I hope you enjoy your time!</p>
+            </div>
+
+            <div id="restartChapterPopover" class="popover">
+                <h3>Restart Chapter</h3>
+                <p>This will reload your progress from the start of the current chapter. Any progress you made since then will be lost and cannot be recovered. Are you sure you want to do this?</p>
+                <button data-bind="click: settingsButtons.restartChapter" class="choice">Yes</button>
+                <button data-bind="click: closePopovers" class="choice">No</button>
+            </div>
+
+            <div id="creditsPopover" class="popover">
+                <h3>Credits</h3>
+                <h4>Writing & Design & Programming</h4>
+                <ul><li>Alec Noller</li></ul>
+                <h4>Art</h4>
+                <ul><li>Jill Bacola</li></ul>
+                <h4>Testing & Feedback</h4>
+                <ul>
+                    <li>Shervon Cassim</li>
+                    <li>Lucas Church</li>
+                    <li>Eric Gregory</li>
+                    <li>Kyle Marion</li>
+                    <li>Matt Noller</li>
+                </ul>
+            </div>
+
+            <div id="demoEndPopover" class="popover">
+                <h3>Thank You For Playing!</h3>
+                <p>What you've seen so far amounts to about 15% of the expected scope of the full game. While it's still in development, it's more finished than not, so keep an eye out for the full version in the coming months. If you want to support development and keep up to date on progress:<p>
+                    <ul class="linkslist">
+                        <li><a target="_blank" href="https://www.patreon.com/smallgraygames">Become a Patreon backer</a></li>
+                        <li><a target="_blank" href="https://smallgraygames.itch.io/the-salt-keep">Follow the dev blog on Itch.io</a></li>
+                        <li><a target="_blank" href="https://twitter.com/smallgraygames">Follow on Twitter</a></li>
+                    </ul>
+                <p>I hope you enjoyed your time!</p>
+                <button class="choice" data-bind="click: settingsButtons.mainMenu">Return to Title Menu</button>
+            </div>
+
+            <div id="exportPopover" class="popover">
+                <h3>Export Save</h3>
+                <p>Choosing to export will download a text file of your save to your filesystem. The export corresponds to the playthrough you currently have loaded, not all three possible saves.</p>
+                <button class="choice" data-bind="click: settingsButtons.exportSave">Export</button>
+            </div>
+
+            <div id="importPopover" class="popover">
+                <h3>Import Save</h3>
+                <p>WARNING: Importing a save will fully overwrite your current game progress, and it will not be possible to recover your old progress. Please be absolutely sure you want to do it before you proceed.</p>
+                <button class="choice" data-bind="click: settingsButtons.importSave">Import</button>
+            </div>
+
+        </div>
+        <script type="text/javascript" src="js/jquery.min.js"></script>
+        <script type="text/javascript" src="js/data.js"></script>
+        <script type="text/javascript" src="js/knockout.js"></script>
+        <script type="text/javascript" src="js/main.js"></script>
+        <script type="text/javascript" src="cordova.js"></script>
+        <script type="text/javascript" src="js/index.js"></script>
+        <script type="text/javascript" src="js/ui.js"></script>
+<!--客服 开始-->
+<link rel="stylesheet" href="//g8hh.github.io/static/css/kf.css" type="text/css" media="screen" charset="utf-8">
+<script src="//g8hh.github.io/static/js/kf.js"></script>
+<!-- 客服 结束 -->
+<!--站长统计-->
+    <div style="display: none">
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?6581389daf4dd6fe7dbb4d20fdcb52a6";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+    </div>
+    </body>
+</html>
